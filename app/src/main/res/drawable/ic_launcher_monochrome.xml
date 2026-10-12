@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Single-colour layer for Android 13+ themed icons; the system tints it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Scaled about the centre so the whole mark, dot included, stays inside the 66dp safe zone. -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.84"
+        android:scaleY="0.84"
+        android:translateX="-1.5">
+        <path
+            android:pathData="M28.5 69.5Q36.6 77 37.6 69.8L41.6 41.2Q43 34.4 47.4 39.6L62.8 68.6Q67.4 76.2 69.6 67.6L74.6 36"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="7.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path
+            android:pathData="M81.5,70m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0"
+            android:fillColor="#FFFFFF" />
+    </group>
+</vector>

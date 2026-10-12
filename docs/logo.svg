@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="512" height="512" role="img" aria-label="Newsly">
+  <rect width="108" height="108" rx="24" fill="#F6F5F2"/>
+  <path d="M28.5 69.5Q36.6 77 37.6 69.8L41.6 41.2Q43 34.4 47.4 39.6L62.8 68.6Q67.4 76.2 69.6 67.6L74.6 36" fill="none" stroke="#121212" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="81.5" cy="70" r="5" fill="#E8441A"/>
+</svg>

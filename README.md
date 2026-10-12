@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" width="120" alt="Newsly logo"></p>
+
 # Newsly
 
 A clean, modern news reader for Android. Newsly puts **world headlines** and **news from where you are** side by side, with categories, search, bookmarks and offline reading, all in a calm editorial design.
@@ -85,6 +87,10 @@ Google News RSS is unofficial: its format can change without notice, and its ter
 - **Type:** Bricolage Grotesque for headlines, Figtree for body text, and Dancing Script for the welcome wordmark.
 - **Colour:** an off-white / near-black base with one accent colour (Ember by default).
 - **Shape:** large rounded cards, pill controls, and a Home / Search / Saved bottom bar.
+
+## Logo
+
+The Newsly mark is an original design: a single pen-stroke "N" followed by the accent dot from the "Newsly." wordmark. The source is [`docs/logo.svg`](docs/logo.svg); the Android adaptive icon (with a themed-icon layer) is in `app/src/main/res/drawable/ic_launcher_*.xml`.
 
 ## Third-party licences
 
