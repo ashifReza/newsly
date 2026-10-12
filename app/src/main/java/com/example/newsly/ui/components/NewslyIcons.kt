@@ -34,6 +34,8 @@ object NewslyIcons {
     val Close = stroke("Close", "M6 6l12 12M18 6L6 18", width = 2.4f)
     val Tune = stroke("Tune", "M4 7h10", "M18 7h2", "M4 17h4", "M12 17h8", "M16 5a2 2 0 1 0 0 4a2 2 0 1 0 0-4z", "M10 15a2 2 0 1 0 0 4a2 2 0 1 0 0-4z")
     val CheckCircle = stroke("CheckCircle", "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z", "M8 12.5l2.7 2.7L16 10", width = 2.2f)
+    val Link = stroke("Link", "M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2", "M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2")
+    val ArrowUp = stroke("ArrowUp", "M12 19V5", "M6 11l6-6 6 6", width = 2.2f)
     val Globe = stroke("Globe", "M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18z", "M3 12h18", "M12 3c2.5 2.7 3.5 5.7 3.5 9s-1 6.3-3.5 9c-2.5-2.7-3.5-5.7-3.5-9s1-6.3 3.5-9z")
     val WifiOff = stroke(
         "WifiOff", "M2 2l20 20", "M8.5 16.5a5 5 0 0 1 7 0", "M5 12.6a10 10 0 0 1 5.2-2.5",

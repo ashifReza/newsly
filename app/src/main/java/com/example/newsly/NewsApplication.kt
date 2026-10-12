@@ -22,6 +22,7 @@ class NewsApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        DebugLocationReceiver.registerIfDebuggable(this, container.locationProvider)
     }
 
     /**

@@ -23,7 +23,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -39,15 +38,16 @@ import androidx.compose.ui.unit.dp
 import com.example.newsly.data.Article
 import com.example.newsly.ui.components.NewslyIcons
 import com.example.newsly.ui.components.PublisherLogo
+import com.example.newsly.ui.components.StoryActions
 import com.example.newsly.ui.components.StoryImage
+import com.example.newsly.ui.components.StorySurface
 import com.example.newsly.ui.components.shortAge
 import com.example.newsly.ui.theme.Newsly
 
 @Composable
 fun SavedScreen(
     bookmarks: List<Article>?,
-    onArticleClick: (Article) -> Unit,
-    onRemove: (Article) -> Unit,
+    storyActions: (Article) -> StoryActions,
 ) {
     val c = Newsly.colors
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
@@ -77,7 +77,7 @@ fun SavedScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(bookmarks, key = { it.url }) { article ->
-                    SavedCard(article, { onArticleClick(article) }, { onRemove(article) }, Modifier.animateItem())
+                    SavedCard(article, storyActions(article), Modifier.animateItem())
                 }
             }
         }
@@ -85,12 +85,12 @@ fun SavedScreen(
 }
 
 @Composable
-private fun SavedCard(article: Article, onClick: () -> Unit, onRemove: () -> Unit, modifier: Modifier) {
+private fun SavedCard(article: Article, actions: StoryActions, modifier: Modifier) {
     val c = Newsly.colors
     val textCard = article.imageUrl == null
     val bg = if (textCard) c.strong else c.surface
     val fg = if (textCard) c.onStrong else c.ink
-    Surface(onClick = onClick, shape = RoundedCornerShape(22.dp), color = bg, modifier = modifier.fillMaxWidth()) {
+    StorySurface(actions, shape = RoundedCornerShape(22.dp), color = bg, modifier = modifier) {
         Box {
             Column {
                 if (textCard) {
@@ -110,7 +110,7 @@ private fun SavedCard(article: Article, onClick: () -> Unit, onRemove: () -> Uni
                     if (textCard) Meta(article, fg)
                 }
             }
-            IconButton(onClick = onRemove, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(44.dp)) {
+            IconButton(onClick = actions.toggleBookmark, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(44.dp)) {
                 Box(Modifier.size(34.dp).background(if (textCard) fg.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.92f), CircleShape), contentAlignment = Alignment.Center) {
                     Icon(BookmarkFilled, "Remove bookmark", tint = c.accent, modifier = Modifier.size(17.dp))
                 }

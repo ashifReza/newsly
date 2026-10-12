@@ -1,8 +1,10 @@
 package com.example.newsly.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +34,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -157,22 +161,66 @@ fun BookmarkToggle(saved: Boolean, onClick: () -> Unit, modifier: Modifier = Mod
     }
 }
 
+/** What a story card can do. Built per story by the screen that shows it. */
+class StoryActions(
+    val open: () -> Unit,
+    val toggleBookmark: () -> Unit,
+    val share: () -> Unit,
+    /** Long-press: the story options sheet. */
+    val more: () -> Unit,
+)
+
+/** A card that opens its story on tap and shows story options on long-press. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun StorySurface(
+    actions: StoryActions,
+    shape: Shape,
+    color: Color,
+    modifier: Modifier = Modifier,
+    shadow: Dp = 0.dp,
+    content: @Composable () -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    Surface(shape = shape, color = color, shadowElevation = shadow, modifier = modifier.fillMaxWidth()) {
+        Box(
+            Modifier.combinedClickable(
+                onClickLabel = "Open story",
+                onLongClickLabel = "Story options",
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    actions.more()
+                },
+                onClick = actions.open,
+            ),
+        ) { content() }
+    }
+}
+
+@Composable
+fun ShareButton(onClick: () -> Unit, tint: Color = Newsly.colors.ink) {
+    IconButton(onClick = onClick, modifier = Modifier.size(44.dp)) {
+        Icon(NewslyIcons.Share, contentDescription = "Share story", tint = tint, modifier = Modifier.size(20.dp))
+    }
+}
+
 /** The big lead story with photo. */
 @Composable
-fun HeroCard(article: Article, saved: Boolean, onClick: () -> Unit, onToggleBookmark: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        onClick = onClick,
+fun HeroCard(article: Article, saved: Boolean, actions: StoryActions, modifier: Modifier = Modifier) {
+    StorySurface(
+        actions,
         shape = RoundedCornerShape(26.dp),
         color = Newsly.colors.surface,
-        shadowElevation = if (Newsly.colors.isDark) 0.dp else 3.dp,
-        modifier = modifier.fillMaxWidth(),
+        shadow = if (Newsly.colors.isDark) 0.dp else 3.dp,
+        modifier = modifier,
     ) {
         Column {
             StoryImage(article.imageUrl, Modifier.fillMaxWidth().aspectRatio(16f / 9.4f))
             Column(Modifier.padding(start = 18.dp, end = 8.dp, top = 6.dp, bottom = 20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SourceMeta(article, Modifier.weight(1f), logoSize = 22.dp)
-                    BookmarkToggle(saved, onToggleBookmark)
+                    ShareButton(actions.share)
+                    BookmarkToggle(saved, actions.toggleBookmark)
                 }
                 Column(Modifier.padding(end = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(article.title, style = MaterialTheme.typography.headlineMedium, color = Newsly.colors.ink)
@@ -193,10 +241,10 @@ fun HeroCard(article: Article, saved: Boolean, onClick: () -> Unit, onToggleBook
 
 /** Lead story without a photo: a bold ink card. */
 @Composable
-fun LeadTextCard(article: Article, saved: Boolean, onClick: () -> Unit, onToggleBookmark: () -> Unit, scope: String?) {
+fun LeadTextCard(article: Article, saved: Boolean, actions: StoryActions, scope: String?) {
     val bg = Newsly.colors.strong
     val fg = Newsly.colors.onStrong
-    Surface(onClick = onClick, shape = RoundedCornerShape(26.dp), color = bg, modifier = Modifier.fillMaxWidth()) {
+    StorySurface(actions, shape = RoundedCornerShape(26.dp), color = bg) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PublisherLogo(article, 36.dp, corner = 10.dp, onDark = !Newsly.colors.isDark)
@@ -209,8 +257,13 @@ fun LeadTextCard(article: Article, saved: Boolean, onClick: () -> Unit, onToggle
                         color = fg.copy(alpha = 0.72f),
                     )
                 }
-                Box(Modifier.size(44.dp).clip(CircleShape).background(fg.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-                    BookmarkToggle(saved, onToggleBookmark, tint = fg)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(fg.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                        ShareButton(actions.share, tint = fg)
+                    }
+                    Box(Modifier.size(44.dp).clip(CircleShape).background(fg.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                        BookmarkToggle(saved, actions.toggleBookmark, tint = fg)
+                    }
                 }
             }
             Text(article.title, style = MaterialTheme.typography.headlineMedium, color = fg)
@@ -220,13 +273,13 @@ fun LeadTextCard(article: Article, saved: Boolean, onClick: () -> Unit, onToggle
 
 /** A story row with a square thumbnail on the right. */
 @Composable
-fun CompactRow(article: Article, saved: Boolean, onClick: () -> Unit, onToggleBookmark: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(20.dp), color = Newsly.colors.surface, modifier = Modifier.fillMaxWidth()) {
+fun CompactRow(article: Article, saved: Boolean, actions: StoryActions) {
+    StorySurface(actions, shape = RoundedCornerShape(20.dp), color = Newsly.colors.surface) {
         Row(Modifier.padding(start = 14.dp, top = 4.dp, bottom = 14.dp, end = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     SourceMeta(article, Modifier.weight(1f), logoSize = 16.dp, longAge = false)
-                    BookmarkToggle(saved, onToggleBookmark, Modifier.padding(end = 0.dp))
+                    BookmarkToggle(saved, actions.toggleBookmark)
                 }
                 Text(
                     article.title,
@@ -255,13 +308,7 @@ fun groupPosition(index: Int, count: Int) = when {
 
 /** A text story inside a white grouped list, with a publisher badge. */
 @Composable
-fun GroupedRow(
-    article: Article,
-    position: GroupPosition,
-    saved: Boolean,
-    onClick: () -> Unit,
-    onToggleBookmark: () -> Unit,
-) {
+fun GroupedRow(article: Article, position: GroupPosition, saved: Boolean, actions: StoryActions) {
     val r = 22.dp
     val shape = when (position) {
         GroupPosition.ONLY -> RoundedCornerShape(r)
@@ -269,7 +316,7 @@ fun GroupedRow(
         GroupPosition.LAST -> RoundedCornerShape(bottomStart = r, bottomEnd = r)
         GroupPosition.MIDDLE -> RoundedCornerShape(0.dp)
     }
-    Surface(onClick = onClick, shape = shape, color = Newsly.colors.surface, modifier = Modifier.fillMaxWidth()) {
+    StorySurface(actions, shape = shape, color = Newsly.colors.surface) {
         Column(Modifier.padding(horizontal = 16.dp)) {
             Row(Modifier.padding(top = 14.dp, bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 PublisherLogo(article, 40.dp, corner = 12.dp)
@@ -284,7 +331,7 @@ fun GroupedRow(
                         color = Newsly.colors.muted,
                     )
                 }
-                BookmarkToggle(saved, onToggleBookmark, Modifier.padding(top = 0.dp))
+                BookmarkToggle(saved, actions.toggleBookmark)
             }
             if (position == GroupPosition.FIRST || position == GroupPosition.MIDDLE) {
                 HorizontalDivider(color = Newsly.colors.line.copy(alpha = 0.55f), thickness = 1.dp)

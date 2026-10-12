@@ -42,7 +42,15 @@ class LocationProvider(private val context: Context) {
         ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
 
+    /**
+     * Debug builds only: a pretend location set from the computer, for testing what happens
+     * when the user travels. See [com.example.newsly.DebugLocationReceiver].
+     */
+    @Volatile
+    var debugOverride: UserLocation? = null
+
     suspend fun currentLocation(): UserLocation {
+        debugOverride?.let { return it }
         if (hasPermission()) {
             runCatching { fromDevice() }.getOrNull()?.let { return it }
         }
@@ -51,20 +59,31 @@ class LocationProvider(private val context: Context) {
 
     @SuppressLint("MissingPermission") // Checked by hasPermission() before calling.
     private suspend fun fromDevice(): UserLocation? {
-        val location = withTimeoutOrNull(10_000) {
-            fused.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, CancellationTokenSource().token)
-                .await()
-        } ?: fused.lastLocation.await() ?: return null
+        // Low-power fix first (Wi-Fi/cell), then the last known position. Phones with network
+        // location turned off get neither, so finish with one GPS fix; with coarse permission
+        // Android still only hands the app an approximate position.
+        val location = currentFix(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 6_000)
+            ?: fused.lastLocation.await()
+            ?: currentFix(Priority.PRIORITY_HIGH_ACCURACY, 12_000)
+            ?: return null
 
         if (!Geocoder.isPresent()) return null
         val address = reverseGeocode(location.latitude, location.longitude) ?: return null
         val cc = address.countryCode ?: return null
         return UserLocation(
-            city = address.locality ?: address.subAdminArea ?: address.adminArea,
+            // Without a town name, fall back to the district or region, minus its administrative
+            // suffix: "Gazipur District" reads (and searches) better as "Gazipur".
+            city = (address.locality ?: address.subAdminArea ?: address.adminArea)
+                ?.replace(Regex("\\s+(District|Division)$"), ""),
             countryCode = cc,
             countryName = address.countryName ?: countryName(cc),
             isApproximate = false,
         )
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun currentFix(priority: Int, timeoutMs: Long) = withTimeoutOrNull(timeoutMs) {
+        fused.getCurrentLocation(priority, CancellationTokenSource().token).await()
     }
 
     private suspend fun reverseGeocode(lat: Double, lng: Double): Address? {

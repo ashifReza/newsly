@@ -51,6 +51,7 @@ import com.example.newsly.ui.components.Chip
 import com.example.newsly.ui.components.GroupedRow
 import com.example.newsly.ui.components.NewslyIcons
 import com.example.newsly.ui.components.PrimaryButton
+import com.example.newsly.ui.components.StoryActions
 import com.example.newsly.ui.components.groupPosition
 import com.example.newsly.ui.theme.Newsly
 
@@ -65,8 +66,7 @@ fun SearchScreen(
     onRetry: () -> Unit,
     onClear: () -> Unit,
     onClearRecent: () -> Unit,
-    onArticleClick: (Article) -> Unit,
-    onToggleBookmark: (Article) -> Unit,
+    storyActions: (Article) -> StoryActions,
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -175,8 +175,7 @@ fun SearchScreen(
                                 article = article,
                                 position = groupPosition(i, results.articles.size),
                                 saved = article.url in savedUrls,
-                                onClick = { onArticleClick(article) },
-                                onToggleBookmark = { onToggleBookmark(article) },
+                                actions = storyActions(article),
                             )
                         }
                     }

@@ -6,14 +6,28 @@ A clean, modern news reader for Android. Newsly puts **world headlines** and **n
 
 Built with Kotlin and Jetpack Compose. No API key or account needed.
 
+## Screenshots
+
+| Welcome | Make it yours | Near you |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/welcome.png" width="240" alt="Welcome screen with the handwritten Newsly wordmark"> | <img src="docs/screenshots/theme-picker.png" width="240" alt="Theme picker with appearance, accent colour and text size"> | <img src="docs/screenshots/near-you.png" width="240" alt="Near you feed showing local London news"> |
+
+| Story options | Search | Dark mode |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/story-options.png" width="240" alt="Long-press options: share, save, copy link, open in browser"> | <img src="docs/screenshots/search.png" width="240" alt="Search results for climate change"> | <img src="docs/screenshots/dark-mode.png" width="240" alt="Near you feed in dark mode"> |
+
+<sub>Screenshots show headlines and publisher logos from live feeds; the World feed's story photos belong to their publishers and aren't reproduced here.</sub>
+
 ## Features
 
 - **World and Near you.** Top stories from BBC News, The Guardian, The New York Times and France 24, plus local news for your city (falling back to your country), detected from your approximate location.
 - **Categories.** Top, Business, Tech, Science, Health, Sports and Entertainment, for both world and local news.
 - **Search.** Results appear as you type, covering the past week across thousands of outlets, with recent searches kept for quick reuse.
 - **In-app reading.** Tap a story for a preview with its photo and summary, then read the full article on the publisher's page without leaving the app.
+- **Share anything.** A share button on top stories, and a long-press menu on every story to share, save, copy the link or open it in the browser.
 - **Bookmarks.** Save stories to a Saved grid that stays readable offline, with undo on removal.
-- **Offline first.** Every feed is saved on the device. The app opens instantly with the last stories, refreshes them in the background, and shows a clear banner when you're offline.
+- **Always fresh, offline first.** Every feed is saved on the device, so the app opens instantly. Coming back after a while refreshes anything older than 10 minutes in the background: if you're at the top the new stories just appear, and if you're mid-read a "new stories" pill lets you jump up when you're ready. Offline, a clear banner says how old the stories are.
+- **Follows you.** Travel to another city and Near you switches to it the next time you open the app.
 - **Make it yours.** Light, dark or system theme, five accent colours and a larger text option, chosen on first launch and changeable any time.
 - **First-launch welcome.** The Newsly wordmark writes itself out like pen on paper. It respects the system's reduced-motion setting.
 
@@ -47,6 +61,17 @@ Or from the command line:
 ```bash
 ./gradlew installDebug
 ```
+
+### Testing Near you in other places
+
+Debug builds can pretend to be somewhere else, so you can check local news without travelling. Leave the app and come back after each command; it picks up the new place on return.
+
+```bash
+adb shell "am broadcast -a com.example.newsly.DEBUG_SET_LOCATION --es city Paris --es country_code FR --es country France"
+adb shell am broadcast -a com.example.newsly.DEBUG_SET_LOCATION --ez clear true
+```
+
+Release builds don't include this.
 
 ## Project structure
 

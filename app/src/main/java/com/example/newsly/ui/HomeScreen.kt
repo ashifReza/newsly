@@ -1,5 +1,20 @@
 package com.example.newsly.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
+import com.example.newsly.ui.components.StoryActions
+import java.time.Instant
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -65,7 +80,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(viewModel: NewsViewModel, onArticleClick: (Article) -> Unit, onOpenSettings: () -> Unit) {
+fun HomeScreen(viewModel: NewsViewModel, storyActions: (Article) -> StoryActions, onOpenSettings: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val savedUrls by viewModel.savedUrls.collectAsStateWithLifecycle()
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -107,14 +122,14 @@ fun HomeScreen(viewModel: NewsViewModel, onArticleClick: (Article) -> Unit, onOp
         }
 
         val local = selectedTab == 1
-        // Keyed so World and Near you each keep their own scroll position.
-        key(local) { Feed(
+        // Keyed so World and Near you each keep their own scroll position, and a new place
+        // (the user travelled) starts at the top rather than mid-way down the old place's list.
+        key(local, if (local) state.localScope else null) { Feed(
             feed = if (local) state.local else state.world,
             refreshing = if (local) state.localRefreshing else state.worldRefreshing,
             onRefresh = if (local) viewModel::refreshLocal else viewModel::refreshWorld,
-            onArticleClick = onArticleClick,
+            storyActions = storyActions,
             savedUrls = savedUrls,
-            onToggleBookmark = viewModel::toggleBookmark,
             scope = if (local) state.localScope else null,
             topBanner = if (local && state.location?.isApproximate == true && !viewModel.hasLocationPermission) {
                 {
@@ -137,9 +152,8 @@ private fun Feed(
     feed: FeedState,
     refreshing: Boolean,
     onRefresh: () -> Unit,
-    onArticleClick: (Article) -> Unit,
+    storyActions: (Article) -> StoryActions,
     savedUrls: Set<String>,
-    onToggleBookmark: (Article) -> Unit,
     scope: String?,
     topBanner: (@Composable () -> Unit)?,
 ) {
@@ -153,15 +167,37 @@ private fun Feed(
                 CenteredMessage("No stories right now.", actionLabel = "Refresh", onAction = onRefresh)
             } else {
                 val listState = rememberLazyListState()
+                val coroutineScope = rememberCoroutineScope()
                 // A refresh can add stories (or the offline banner) above the first one on screen.
-                // The list normally holds its place, hiding them; if the reader was at the top, keep them there.
-                // This is read during composition, before the list lays out the new content.
+                // The list normally holds its place, hiding them. If the reader was at the top, keep them
+                // there; if they were reading further down, leave them be and offer a "new stories" pill.
+                // wasAtTop is read during composition, before the list lays out the new content.
                 val wasAtTop = remember(feed.articles, feed.refreshProblem) {
                     listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
                 }
+                var shownUrls by remember { mutableStateOf(feed.articles.mapTo(HashSet()) { it.url }) }
+                var newStories by remember { mutableIntStateOf(0) }
                 LaunchedEffect(feed.articles, feed.refreshProblem) {
-                    if (wasAtTop) listState.scrollToItem(0)
+                    val fresh = feed.articles.count { it.url !in shownUrls }
+                    shownUrls = feed.articles.mapTo(HashSet()) { it.url }
+                    if (wasAtTop) {
+                        listState.scrollToItem(0)
+                        newStories = 0
+                    } else {
+                        newStories += fresh
+                    }
                 }
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.firstVisibleItemIndex == 0 }.collect { atTop -> if (atTop) newStories = 0 }
+                }
+                // Ticks so "Updated 3 min ago" stays true while the screen is open.
+                val now by produceState(Instant.now()) {
+                    while (true) {
+                        delay(60_000)
+                        value = Instant.now()
+                    }
+                }
+                val updated = feed.fetchedAt?.let { "Updated ${it.shortAge(now)}" }
                 val lead = feed.articles.first()
                 val rest = feed.articles.drop(1)
                 val photoLed = lead.imageUrl != null
@@ -186,20 +222,16 @@ private fun Feed(
                     }
                     if (photoLed) {
                         item(key = "kicker") { Kicker("Top story") }
-                        item(key = lead.url) {
-                            HeroCard(lead, lead.url in savedUrls, { onArticleClick(lead) }, { onToggleBookmark(lead) })
-                        }
-                        if (rest.isNotEmpty()) item(key = "latest") { SectionHeader("Latest", "${feed.articles.size} stories") }
+                        item(key = lead.url) { HeroCard(lead, lead.url in savedUrls, storyActions(lead)) }
+                        if (rest.isNotEmpty()) item(key = "latest") { SectionHeader("Latest", updated ?: "${feed.articles.size} stories") }
                         items(rest, key = { it.url }) { article ->
-                            CompactRow(article, article.url in savedUrls, { onArticleClick(article) }, { onToggleBookmark(article) })
+                            CompactRow(article, article.url in savedUrls, storyActions(article))
                         }
                     } else {
-                        item(key = lead.url) {
-                            LeadTextCard(lead, lead.url in savedUrls, { onArticleClick(lead) }, { onToggleBookmark(lead) }, scope)
-                        }
+                        item(key = lead.url) { LeadTextCard(lead, lead.url in savedUrls, storyActions(lead), scope) }
                         if (rest.isNotEmpty()) {
                             item(key = "latest") {
-                                SectionHeader(scope?.let { "Around $it" } ?: "Latest", "Local outlets", Modifier.padding(top = 14.dp, bottom = 12.dp))
+                                SectionHeader(scope?.let { "Around $it" } ?: "Latest", updated ?: "Local outlets", Modifier.padding(top = 14.dp, bottom = 12.dp))
                             }
                         }
                         itemsIndexed(rest, key = { _, a -> a.url }) { i, article ->
@@ -207,12 +239,50 @@ private fun Feed(
                                 article = article,
                                 position = groupPosition(i, rest.size),
                                 saved = article.url in savedUrls,
-                                onClick = { onArticleClick(article) },
-                                onToggleBookmark = { onToggleBookmark(article) },
+                                actions = storyActions(article),
                             )
                         }
                     }
                 }
+                NewStoriesPill(
+                    count = newStories,
+                    onClick = {
+                        newStories = 0
+                        coroutineScope.launch { listState.animateScrollToItem(0) }
+                    },
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 10.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Floating "↑ 5 new stories" pill, shown when stories arrive while the reader is scrolled down. */
+@Composable
+private fun NewStoriesPill(count: Int, onClick: () -> Unit, modifier: Modifier) {
+    AnimatedVisibility(
+        visible = count > 0,
+        enter = fadeIn() + slideInVertically { -it },
+        exit = fadeOut() + slideOutVertically { -it },
+        modifier = modifier,
+    ) {
+        Surface(
+            onClick = onClick,
+            shape = RoundedCornerShape(999.dp),
+            color = Newsly.colors.strong,
+            contentColor = Newsly.colors.onStrong,
+            shadowElevation = 6.dp,
+        ) {
+            Row(
+                Modifier.height(44.dp).padding(horizontal = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(NewslyIcons.ArrowUp, null, modifier = Modifier.size(18.dp))
+                Text(
+                    if (count == 1) "1 new story" else "$count new stories",
+                    style = MaterialTheme.typography.labelLarge,
+                )
             }
         }
     }

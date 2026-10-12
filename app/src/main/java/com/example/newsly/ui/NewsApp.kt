@@ -1,5 +1,15 @@
 package com.example.newsly.ui
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import com.example.newsly.data.Article
+import com.example.newsly.ui.components.StoryActions
+import com.example.newsly.ui.components.StoryOptionsSheet
+import com.example.newsly.util.shareArticle
+import kotlinx.coroutines.delay
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -41,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +85,29 @@ fun NewsApp(viewModel: NewsViewModel, appSettings: AppSettings) {
     val snackbarHostState = remember { SnackbarHostState() }
     var tabIndex by rememberSaveable { mutableIntStateOf(0) }
     val tab = Tab.entries[tabIndex]
+    val context = LocalContext.current
+    var optionsFor by remember { mutableStateOf<Article?>(null) }
+    val tabState = rememberSaveableStateHolder()
+
+    fun actionsFor(article: Article, onOpen: () -> Unit = { viewModel.openArticle(article) }) = StoryActions(
+        open = onOpen,
+        toggleBookmark = { viewModel.toggleBookmark(article) },
+        share = { context.shareArticle(article.title, article.url) },
+        more = { optionsFor = article },
+    )
+
+    // On returning to the app: check whether the user has moved city. Then, and every minute
+    // while the app is on screen, refresh feeds older than 10 minutes.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            viewModel.checkLocationChange()
+            while (true) {
+                viewModel.refreshIfStale()
+                delay(60_000)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.bookmarkEvents.collect { event ->
@@ -95,8 +129,9 @@ fun NewsApp(viewModel: NewsViewModel, appSettings: AppSettings) {
     Box(Modifier.fillMaxSize().background(Newsly.colors.background)) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
-                when (tab) {
-                    Tab.HOME -> HomeScreen(viewModel, onArticleClick = viewModel::openArticle, onOpenSettings = viewModel::openSettings)
+                // Each tab keeps its own state (World/Near you, scroll positions) while another is shown.
+                tabState.SaveableStateProvider(tab.name) { when (tab) {
+                    Tab.HOME -> HomeScreen(viewModel, storyActions = { actionsFor(it) }, onOpenSettings = viewModel::openSettings)
                     Tab.SEARCH -> SearchScreen(
                         state = searchState,
                         recentSearches = recentSearches,
@@ -106,14 +141,15 @@ fun NewsApp(viewModel: NewsViewModel, appSettings: AppSettings) {
                         onRetry = { viewModel.search(searchState.searchedQuery.orEmpty(), forceRefresh = true) },
                         onClear = viewModel::clearSearch,
                         onClearRecent = viewModel::clearRecentSearches,
-                        onArticleClick = {
-                            viewModel.rememberSearch()
-                            viewModel.openArticle(it)
+                        storyActions = { article ->
+                            actionsFor(article, onOpen = {
+                                viewModel.rememberSearch()
+                                viewModel.openArticle(article)
+                            })
                         },
-                        onToggleBookmark = viewModel::toggleBookmark,
                     )
-                    Tab.SAVED -> SavedScreen(bookmarks, onArticleClick = viewModel::openArticle, onRemove = viewModel::toggleBookmark)
-                }
+                    Tab.SAVED -> SavedScreen(bookmarks, storyActions = { actionsFor(it) })
+                } }
             }
             BottomBar(tab, onSelect = { tabIndex = it.ordinal })
         }
@@ -170,6 +206,15 @@ fun NewsApp(viewModel: NewsViewModel, appSettings: AppSettings) {
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
+    }
+
+    optionsFor?.let { article ->
+        StoryOptionsSheet(
+            article = article,
+            saved = article.url in savedUrls,
+            onToggleBookmark = { viewModel.toggleBookmark(article) },
+            onDismiss = { optionsFor = null },
+        )
     }
 
     // The web screen handles back itself so it can step back through pages first.

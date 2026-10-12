@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.time.Duration
 import java.time.Instant
 
 sealed interface FeedState {
@@ -261,7 +262,10 @@ class NewsViewModel(
             val saved = runCatching { repository.savedWorld(category) }.getOrNull()
             ensureActive() // runCatching swallows cancellation; stop here if a newer load replaced this one.
             if (saved != null) {
-                _uiState.update { it.copy(world = FeedState.Success(saved.articles, saved.fetchedAt)) }
+                // Already on screen (e.g. a background re-check): leave it, so the offline banner doesn't flicker.
+                if (!_uiState.value.world.shows(saved)) {
+                    _uiState.update { it.copy(world = FeedState.Success(saved.articles, saved.fetchedAt)) }
+                }
                 if (!forceRefresh && saved.isFresh()) {
                     _uiState.update { it.copy(worldRefreshing = false) }
                     return@launch
@@ -286,7 +290,7 @@ class NewsViewModel(
 
             val saved = runCatching { repository.savedLocal(category) }.getOrNull()
             ensureActive()
-            if (saved != null) {
+            if (saved != null && !_uiState.value.local.shows(saved)) {
                 _uiState.update {
                     it.copy(local = FeedState.Success(saved.articles, saved.fetchedAt), localScope = saved.scope)
                 }
@@ -313,6 +317,42 @@ class NewsViewModel(
             }
         }
     }
+
+    /**
+     * Downloads any feed on screen that's older than [NewsRepository.FRESH_FOR], keeping the
+     * current stories visible meanwhile. Called when the user returns to the app and once a
+     * minute while it's open, so the feed doesn't quietly go stale.
+     */
+    fun refreshIfStale() {
+        val state = _uiState.value
+        if (state.world.isStale() && worldJob?.isActive != true) loadWorld()
+        if (state.local.isStale() && localJob?.isActive != true) loadLocal(resolveLocation = true)
+    }
+
+    /**
+     * Re-checks where the user is (on returning to the app) and reloads Near you if they've
+     * moved to another city or country, however recently the feed was refreshed.
+     */
+    fun checkLocationChange() {
+        val known = _uiState.value.location ?: return // First load is still finding it.
+        if (localJob?.isActive == true) return
+        viewModelScope.launch {
+            val now = locationProvider.currentLocation()
+            // A momentary failure that only knows the country shouldn't replace a known city.
+            if (now.isApproximate && !known.isApproximate) return@launch
+            if (repository.locationKey(now) != repository.locationKey(known)) {
+                _uiState.update { it.copy(location = now) }
+                loadLocal(resolveLocation = false)
+            }
+        }
+    }
+
+    private fun FeedState.isStale(): Boolean {
+        val fetchedAt = (this as? FeedState.Success)?.fetchedAt ?: return false
+        return Duration.between(fetchedAt, Instant.now()) >= NewsRepository.FRESH_FOR
+    }
+
+    private fun FeedState.shows(feed: Feed) = this is FeedState.Success && fetchedAt == feed.fetchedAt
 
     /** A fresh download, or the saved copy with a note that it couldn't be refreshed. */
     private fun Result<Feed>.toFeedState(saved: Feed?): FeedState = fold(
