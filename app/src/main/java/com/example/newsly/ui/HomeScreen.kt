@@ -59,6 +59,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.newsly.data.Article
 import com.example.newsly.data.Category
+import com.example.newsly.data.SortOrder
+import com.example.newsly.ui.components.CountrySheet
+import com.example.newsly.ui.components.FilterPill
+import com.example.newsly.ui.components.SortSheet
 import com.example.newsly.ui.components.Chip
 import com.example.newsly.ui.components.CompactRow
 import com.example.newsly.ui.components.GroupedRow
@@ -122,15 +126,46 @@ fun HomeScreen(viewModel: NewsViewModel, storyActions: (Article) -> StoryActions
         }
 
         val local = selectedTab == 1
+        var picker by rememberSaveable { mutableStateOf<String?>(null) }
+        Row(
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (!local) {
+                val country = state.worldCountry
+                FilterPill(
+                    label = country?.name ?: "All countries",
+                    onClick = { picker = "country" },
+                    icon = NewslyIcons.Globe.takeIf { country == null },
+                    emoji = country?.flag,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+            }
+            Spacer(Modifier.weight(0.01f))
+            FilterPill(label = state.sort.label, onClick = { picker = "sort" }, icon = NewslyIcons.Sort)
+        }
+        when (picker) {
+            "country" -> CountrySheet(state.worldCountry, viewModel::selectWorldCountry, onDismiss = { picker = null })
+            "sort" -> SortSheet(state.sort, viewModel::selectSort, onDismiss = { picker = null })
+        }
+
+        val listTitle = when {
+            local -> state.localScope?.let { "Around $it" }
+            state.worldCountry != null -> "From ${state.worldCountry?.name}"
+            else -> null
+        } ?: if (state.sort == SortOrder.LATEST) "Latest" else state.sort.label
         // Keyed so World and Near you each keep their own scroll position, and a new place
-        // (the user travelled) starts at the top rather than mid-way down the old place's list.
-        key(local, if (local) state.localScope else null) { Feed(
+        // (the user travelled), country or sort order starts at the top rather than mid-way down.
+        key(local, if (local) state.localScope else state.worldCountry, state.sort) { Feed(
             feed = if (local) state.local else state.world,
             refreshing = if (local) state.localRefreshing else state.worldRefreshing,
             onRefresh = if (local) viewModel::refreshLocal else viewModel::refreshWorld,
             storyActions = storyActions,
             savedUrls = savedUrls,
             scope = if (local) state.localScope else null,
+            sort = state.sort,
+            listTitle = listTitle,
             topBanner = if (local && state.location?.isApproximate == true && !viewModel.hasLocationPermission) {
                 {
                     InfoBanner(
@@ -155,6 +190,8 @@ private fun Feed(
     storyActions: (Article) -> StoryActions,
     savedUrls: Set<String>,
     scope: String?,
+    sort: SortOrder,
+    listTitle: String,
     topBanner: (@Composable () -> Unit)?,
 ) {
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
@@ -198,8 +235,9 @@ private fun Feed(
                     }
                 }
                 val updated = feed.fetchedAt?.let { "Updated ${it.shortAge(now)}" }
-                val lead = feed.articles.first()
-                val rest = feed.articles.drop(1)
+                val articles = remember(feed.articles, sort) { sort.apply(feed.articles) }
+                val lead = articles.first()
+                val rest = articles.drop(1)
                 val photoLed = lead.imageUrl != null
                 LazyColumn(
                     state = listState,
@@ -223,7 +261,7 @@ private fun Feed(
                     if (photoLed) {
                         item(key = "kicker") { Kicker("Top story") }
                         item(key = lead.url) { HeroCard(lead, lead.url in savedUrls, storyActions(lead)) }
-                        if (rest.isNotEmpty()) item(key = "latest") { SectionHeader(scope?.let { "Around $it" } ?: "Latest", updated ?: "${feed.articles.size} stories") }
+                        if (rest.isNotEmpty()) item(key = "latest") { SectionHeader(listTitle, updated ?: "${feed.articles.size} stories") }
                         items(rest, key = { it.url }) { article ->
                             CompactRow(article, article.url in savedUrls, storyActions(article))
                         }
@@ -231,7 +269,7 @@ private fun Feed(
                         item(key = lead.url) { LeadTextCard(lead, lead.url in savedUrls, storyActions(lead), scope) }
                         if (rest.isNotEmpty()) {
                             item(key = "latest") {
-                                SectionHeader(scope?.let { "Around $it" } ?: "Latest", updated ?: "Local outlets", Modifier.padding(top = 14.dp, bottom = 12.dp))
+                                SectionHeader(listTitle, updated ?: "Local outlets", Modifier.padding(top = 14.dp, bottom = 12.dp))
                             }
                         }
                         itemsIndexed(rest, key = { _, a -> a.url }) { i, article ->

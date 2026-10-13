@@ -131,6 +131,19 @@ class PublisherFeeds(private val rss: RssClient) {
                 SCIENCE to "https://www.wired.com/feed/category/science/latest/rss",
             ),
         ),
+        // Outlets from around the world, so World isn't only seen from London, New York and Paris.
+        world("South China Morning Post", "https://www.scmp.com", "https://www.scmp.com/rss/91/feed"),
+        world("The Japan Times", "https://www.japantimes.co.jp", "https://www.japantimes.co.jp/feed/"),
+        world("CNA", "https://www.channelnewsasia.com", "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6311"),
+        world("Rappler", "https://www.rappler.com", "https://www.rappler.com/feed/"),
+        world("The Hindu", "https://www.thehindu.com", "https://www.thehindu.com/news/international/feeder/default.rss"),
+        world("Arab News", "https://www.arabnews.com", "https://www.arabnews.com/rss.xml"),
+        world("Africanews", "https://www.africanews.com", "https://www.africanews.com/feed/rss"),
+        world("Nation", "https://nation.africa", "https://nation.africa/kenya/rss.xml"),
+        world("Buenos Aires Times", "https://www.batimes.com.ar", "https://www.batimes.com.ar/feed"),
+        world("MercoPress", "https://en.mercopress.com", "https://en.mercopress.com/rss"),
+        world("Euronews", "https://www.euronews.com", "https://www.euronews.com/rss?format=mrss&level=theme&name=news"),
+        world("Global News", "https://globalnews.ca", "https://globalnews.ca/world/feed/"),
         Publisher(
             name = "Sky Sports",
             site = "https://www.skysports.com",
@@ -165,11 +178,36 @@ class PublisherFeeds(private val rss: RssClient) {
             local("The Times of India", "https://timesofindia.indiatimes.com", "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms"),
             local("Hindustan Times", "https://www.hindustantimes.com", "https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml"),
         ),
+        "JP" to listOf(local("The Japan Times", "https://www.japantimes.co.jp", "https://www.japantimes.co.jp/feed/")),
+        "SG" to listOf(local("CNA", "https://www.channelnewsasia.com", "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=10416")),
+        "CN" to listOf(local("South China Morning Post", "https://www.scmp.com", "https://www.scmp.com/rss/4/feed")),
+        "HK" to listOf(local("South China Morning Post", "https://www.scmp.com", "https://www.scmp.com/rss/2/feed")),
+        "KR" to listOf(local("The Korea Times", "https://www.koreatimes.co.kr", "https://www.koreatimes.co.kr/www/rss/nation.xml")),
+        "MY" to listOf(local("Malay Mail", "https://www.malaymail.com", "https://www.malaymail.com/feed/rss/malaysia")),
+        "PH" to listOf(local("Rappler", "https://www.rappler.com", "https://www.rappler.com/feed/")),
+        "AE" to listOf(local("The National", "https://www.thenationalnews.com", "https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml")),
+        "SA" to listOf(local("Arab News", "https://www.arabnews.com", "https://www.arabnews.com/rss.xml")),
+        "TR" to listOf(local("Daily Sabah", "https://www.dailysabah.com", "https://www.dailysabah.com/rss/turkey")),
+        // No photos in these feeds; their links go straight to the article, so the app finds them.
+        "IL" to listOf(local("The Times of Israel", "https://www.timesofisrael.com", "https://www.timesofisrael.com/feed/")),
+        "RU" to listOf(local("The Moscow Times", "https://www.themoscowtimes.com", "https://www.themoscowtimes.com/rss/news")),
+        "MX" to listOf(local("Mexico News Daily", "https://mexiconewsdaily.com", "https://mexiconewsdaily.com/feed/")),
+        "FR" to listOf(local("France 24", "https://www.france24.com", "https://www.france24.com/en/france/rss")),
+        "DE" to listOf(local("The Local Germany", "https://www.thelocal.de", "https://www.thelocal.de/feeds/rss.php")),
+        "IT" to listOf(local("ANSA", "https://www.ansa.it", "https://www.ansa.it/english/news/english_nr_rss.xml")),
+        "CA" to listOf(local("Global News", "https://globalnews.ca", "https://globalnews.ca/canada/feed/")),
+        "AR" to listOf(local("Buenos Aires Times", "https://www.batimes.com.ar", "https://www.batimes.com.ar/feed")),
+        "NZ" to listOf(local("NZ Herald", "https://www.nzherald.co.nz", "https://www.nzherald.co.nz/arc/outboundfeeds/rss/section/nz/?outputType=xml")),
+        "ZA" to listOf(local("Daily Maverick", "https://www.dailymaverick.co.za", "https://www.dailymaverick.co.za/dmrss/")),
+        "KE" to listOf(local("Nation", "https://nation.africa", "https://nation.africa/kenya/rss.xml")),
+        "GH" to listOf(local("MyJoyOnline", "https://www.myjoyonline.com", "https://www.myjoyonline.com/feed/")),
         "PK" to listOf(local("Dawn", "https://www.dawn.com", "https://www.dawn.com/feeds/home")),
         "AU" to listOf(local("The Guardian", "https://www.theguardian.com", "https://www.theguardian.com/australia-news/rss")),
         "IE" to listOf(local("RTÉ", "https://www.rte.ie", "https://www.rte.ie/feeds/rss/?index=/news/")),
         "NG" to listOf(local("Punch Newspapers", "https://punchng.com", "https://punchng.com/feed/")),
     )
+
+    private fun world(name: String, site: String, feed: String) = Publisher(name, site, mapOf(TOP to feed))
 
     private fun local(name: String, site: String, feed: String, improveImage: (String) -> String = { it }) =
         Publisher(name, site, mapOf(TOP to feed), improveImage)
@@ -179,13 +217,31 @@ class PublisherFeeds(private val rss: RssClient) {
         fetchAll(localPublishers[countryCode.uppercase()].orEmpty(), TOP)
 
     /**
+     * Stories from the World outlets' [category] feeds that mention any of [terms] (a country's
+     * name, adjective, capital) in the headline or summary. All of each feed is searched, not
+     * just the few stories World shows, so most countries in the news get photo stories.
+     */
+    suspend fun mentioning(category: Category, terms: List<String>): List<Article> {
+        if (terms.isEmpty()) return emptyList()
+        val pattern = Regex(terms.joinToString("|", prefix = "(?<![\\p{L}\\p{N}])(?:", postfix = ")(?![\\p{L}\\p{N}])") { Regex.escape(it) })
+        return fetchAll(publishers, category, perPublisher = Int.MAX_VALUE)
+            .filter { pattern.containsMatchIn(it.title) || it.description?.let(pattern::containsMatchIn) == true }
+    }
+
+    /**
      * Fetches every publisher's feed for [category] in parallel. One feed failing
      * doesn't break the tab. Each publisher contributes at most [PER_PUBLISHER]
      * stories, so outlets that post very often don't crowd out the rest.
      */
-    suspend fun headlines(category: Category): List<Article> = fetchAll(publishers, category)
+    suspend fun headlines(category: Category): List<Article> =
+        // Top draws on about thirty outlets, so each gets fewer slots to leave room for all of them.
+        fetchAll(publishers, category, perPublisher = if (category == TOP) PER_PUBLISHER_TOP else PER_PUBLISHER)
 
-    private suspend fun fetchAll(publishers: List<Publisher>, category: Category): List<Article> = coroutineScope {
+    private suspend fun fetchAll(
+        publishers: List<Publisher>,
+        category: Category,
+        perPublisher: Int = PER_PUBLISHER,
+    ): List<Article> = coroutineScope {
         if (publishers.isEmpty()) return@coroutineScope emptyList()
         val results = publishers.mapNotNull { publisher ->
             val url = publisher.feeds[category] ?: return@mapNotNull null
@@ -193,13 +249,13 @@ class PublisherFeeds(private val rss: RssClient) {
         }.awaitAll()
         if (results.all { it.isFailure }) throw results.first().exceptionOrNull()!!
         results.flatMap { result ->
-            result.getOrDefault(emptyList()).sortedByDescending { it.publishedAt }.take(PER_PUBLISHER)
+            result.getOrDefault(emptyList()).sortedByDescending { it.publishedAt }.take(perPublisher)
         }
     }
 
     private suspend fun fetch(publisher: Publisher, url: String): List<Article> {
         val logo = logoUrlFor(publisher.site)
-        return rss.fetch(url.toHttpUrl()).map { item ->
+        return rss.fetch(url.toHttpUrl()).mapIndexed { i, item ->
             Article(
                 title = item.title,
                 description = item.description,
@@ -209,11 +265,13 @@ class PublisherFeeds(private val rss: RssClient) {
                 // Some feeds use <source> for photo credits, so always use the publisher's own name.
                 sourceName = publisher.name,
                 publishedAt = item.publishedAt,
+                rank = i,
             )
         }
     }
 
     private companion object {
         const val PER_PUBLISHER = 10
+        const val PER_PUBLISHER_TOP = 5
     }
 }

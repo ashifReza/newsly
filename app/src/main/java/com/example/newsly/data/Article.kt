@@ -13,4 +13,9 @@ data class Article(
     val logoUrl: String?,
     val sourceName: String,
     val publishedAt: Instant?,
+    /**
+     * Position in its outlet's own feed (0 = the outlet's lead story), for "Top picks".
+     * Null for stories that weren't read from a feed, such as old bookmarks.
+     */
+    val rank: Int? = null,
 )

@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.newsly.NewsApplication
 import com.example.newsly.data.Article
 import com.example.newsly.data.Category
+import com.example.newsly.data.Country
+import com.example.newsly.data.SortOrder
 import com.example.newsly.data.Feed
 import com.example.newsly.data.NewsRepository
 import com.example.newsly.data.RecentSearches
@@ -84,6 +86,10 @@ data class NewsUiState(
     /** Where the local feed is from, e.g. "Dhaka" or "Bangladesh". */
     val localScope: String? = null,
     val location: UserLocation? = null,
+    /** World tab's country filter; null shows every country. */
+    val worldCountry: Country? = null,
+    /** How both Home feeds are ordered. */
+    val sort: SortOrder = SortOrder.LATEST,
     val worldRefreshing: Boolean = false,
     val localRefreshing: Boolean = false,
 )
@@ -242,6 +248,14 @@ class NewsViewModel(
         loadLocal(resolveLocation = false)
     }
 
+    fun selectWorldCountry(country: Country?) {
+        if (country == _uiState.value.worldCountry) return
+        _uiState.update { it.copy(worldCountry = country, world = FeedState.Loading) }
+        loadWorld()
+    }
+
+    fun selectSort(sort: SortOrder) = _uiState.update { it.copy(sort = sort) }
+
     fun refreshWorld() = loadWorld(forceRefresh = true)
 
     fun refreshLocal() = loadLocal(resolveLocation = false, forceRefresh = true)
@@ -257,9 +271,12 @@ class NewsViewModel(
         worldJob?.cancel()
         worldJob = viewModelScope.launch {
             val category = _uiState.value.category
+            val country = _uiState.value.worldCountry
             _uiState.update { it.copy(worldRefreshing = forceRefresh) }
 
-            val saved = runCatching { repository.savedWorld(category) }.getOrNull()
+            val saved = runCatching {
+                if (country == null) repository.savedWorld(category) else repository.savedCountry(country.code, category)
+            }.getOrNull()
             ensureActive() // runCatching swallows cancellation; stop here if a newer load replaced this one.
             if (saved != null) {
                 // Already on screen (e.g. a background re-check): leave it, so the offline banner doesn't flicker.
@@ -272,7 +289,10 @@ class NewsViewModel(
                 }
             }
 
-            val result = runCatching { repository.refreshWorld(category) }
+            val result = runCatching {
+                if (country == null) repository.refreshWorld(category)
+                else repository.refreshCountry(country.code, country.name, category)
+            }
             ensureActive()
             _uiState.update { it.copy(world = result.toFeedState(saved), worldRefreshing = false) }
         }

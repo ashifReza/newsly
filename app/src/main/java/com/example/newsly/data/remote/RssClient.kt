@@ -77,7 +77,7 @@ class RssClient(private val client: OkHttpClient = OkHttpClient()) {
                             current.offerImage(
                                 url = parser.getAttributeValue(null, "url"),
                                 width = parser.getAttributeValue(null, "width")?.toIntOrNull(),
-                                isImage = parser.getAttributeValue(null, "medium")?.let { it == "image" } ?: true,
+                                isImage = parser.name == "thumbnail" || isImageContent(parser),
                             )
                         }
                     }
@@ -89,6 +89,16 @@ class RssClient(private val client: OkHttpClient = OkHttpClient()) {
             }
         }
         return items
+    }
+
+    /**
+     * Whether a <media:content> is a photo. Many feeds leave out `medium`; a `type` that isn't
+     * image/… or a `duration` marks a video (Rappler lists YouTube embeds this way).
+     */
+    private fun isImageContent(parser: XmlPullParser): Boolean {
+        parser.getAttributeValue(null, "medium")?.let { return it == "image" }
+        parser.getAttributeValue(null, "type")?.let { return it.startsWith("image/") }
+        return parser.getAttributeValue(null, "duration") == null
     }
 
     private companion object {

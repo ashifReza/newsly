@@ -30,7 +30,7 @@ class GoogleNewsRss(private val rss: RssClient) {
             .build()
 
     private suspend fun fetch(url: HttpUrl): List<Article> =
-        rss.fetch(url).map { item ->
+        rss.fetch(url).mapIndexed { i, item ->
             Article(
                 // Google appends " - Source" to every headline.
                 title = item.sourceName?.let { item.title.removeSuffix(" - $it") } ?: item.title,
@@ -41,6 +41,7 @@ class GoogleNewsRss(private val rss: RssClient) {
                 logoUrl = logoUrlFor(item.sourceUrl),
                 sourceName = item.sourceName ?: "Google News",
                 publishedAt = item.publishedAt,
+                rank = i,
             )
         }
 }

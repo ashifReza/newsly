@@ -20,7 +20,9 @@ Built with Kotlin and Jetpack Compose. No API key or account needed.
 
 ## Features
 
-- **World and Near you.** Top stories from BBC News, The Guardian, The New York Times, France 24, Sky News, ABC News and Al Jazeera (plus Ars Technica, Wired and Sky Sports in their sections), and local news for your city, topped up with stories from across your country, detected from your approximate location.
+- **World and Near you.** Top stories from about twenty outlets across every region, including BBC News, The Guardian, The New York Times, Al Jazeera, South China Morning Post, The Japan Times, CNA, The Hindu, Arab News, Africanews, Nation (Kenya), Buenos Aires Times and Euronews. Next to them is local news for your city, topped up with stories from across your country, detected from your approximate location.
+- **Any country.** Filter World to a single country, from a searchable list of every country, to see news from and about it.
+- **Sort.** Order stories by *Latest*, *Top picks* (each outlet's leading stories first, taking turns) or *By outlet*.
 - **Categories.** Top, Business, Tech, Science, Health, Sports and Entertainment, for both world and local news.
 - **Search.** Results appear as you type, covering the past week across thousands of outlets, with recent searches kept for quick reuse.
 - **In-app reading.** Tap a story for a preview with its photo and summary, then read the full article on the publisher's page without leaving the app.
@@ -98,7 +100,7 @@ app/src/main/java/com/example/newsly/
 
 ## How the news is sourced
 
-- **World** comes straight from publishers' own RSS feeds, which include photos and summaries. Each outlet contributes at most 10 stories per feed so no single source dominates.
+- **World** comes straight from publishers' own RSS feeds, which include photos and summaries. Each outlet contributes at most 5 stories to Top (10 to other categories) so no single source dominates. Filtering to a country uses Google News coverage of it, plus that country's own outlets where listed.
 - **Near you** combines Google News RSS (the city's feed, a city search and a country-wide search) with the country's own outlets' feeds, which carry photos. Outlets are listed for Bangladesh, the UK, the US, India, Pakistan, Australia, Ireland and Nigeria in `PublisherFeeds.kt`; other countries show Google News stories only. When a story arrives from both, the outlet's copy (with its photo) is kept, and no outlet gets more than 8 stories.
 - **Search** uses Google News RSS. Google News doesn't carry photos, so those cards show the publisher's logo instead.
 - Stories from feeds without photos (Al Jazeera) get the article page's preview image (`og:image`), looked up once per story and saved.

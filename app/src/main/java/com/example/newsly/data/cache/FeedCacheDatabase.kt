@@ -33,6 +33,7 @@ data class FeedArticleEntity(
     val logoUrl: String?,
     val sourceName: String,
     val publishedAtMillis: Long?,
+    val rank: Int?,
 )
 
 @Dao
@@ -82,7 +83,7 @@ interface StoryImageDao {
  * Last downloaded copy of each feed. Kept apart from bookmarks because it can
  * always be rebuilt from the network, so schema changes can simply wipe it.
  */
-@Database(entities = [FeedEntity::class, FeedArticleEntity::class, StoryImageEntity::class], version = 2, exportSchema = false)
+@Database(entities = [FeedEntity::class, FeedArticleEntity::class, StoryImageEntity::class], version = 3, exportSchema = false)
 abstract class FeedCacheDatabase : RoomDatabase() {
     abstract fun feedCacheDao(): FeedCacheDao
     abstract fun storyImageDao(): StoryImageDao
