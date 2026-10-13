@@ -13,7 +13,9 @@ import com.example.newsly.data.cache.FeedCacheDatabase
 import com.example.newsly.data.remote.GoogleNewsRss
 import com.example.newsly.data.remote.PublisherFeeds
 import com.example.newsly.data.remote.RssClient
+import com.example.newsly.data.remote.StoryImageFinder
 import com.example.newsly.location.LocationProvider
+import okhttp3.OkHttpClient
 
 class NewsApplication : Application(), ImageLoaderFactory {
     lateinit var container: AppContainer
@@ -44,12 +46,15 @@ class NewsApplication : Application(), ImageLoaderFactory {
 
 /** Manual dependency container. Swap for Hilt once the app grows. */
 class AppContainer(app: Application) {
-    private val rssClient = RssClient()
+    private val httpClient = OkHttpClient()
+    private val rssClient = RssClient(httpClient)
+    private val feedCache = FeedCacheDatabase.create(app)
     val newsRepository = NewsRepository(
         PublisherFeeds(rssClient),
         GoogleNewsRss(rssClient),
-        FeedCacheDatabase.create(app).feedCacheDao(),
+        feedCache.feedCacheDao(),
     )
+    val storyImageFinder = StoryImageFinder(httpClient, feedCache.storyImageDao())
     val locationProvider = LocationProvider(app)
     val bookmarkRepository = BookmarkRepository(BookmarkDatabase.create(app).bookmarkDao())
     val recentSearches = RecentSearches(app)

@@ -20,7 +20,7 @@ Built with Kotlin and Jetpack Compose. No API key or account needed.
 
 ## Features
 
-- **World and Near you.** Top stories from BBC News, The Guardian, The New York Times and France 24, plus local news for your city (falling back to your country), detected from your approximate location.
+- **World and Near you.** Top stories from BBC News, The Guardian, The New York Times, France 24, Sky News, ABC News and Al Jazeera (plus Ars Technica, Wired and Sky Sports in their sections), and local news for your city, topped up with stories from across your country, detected from your approximate location.
 - **Categories.** Top, Business, Tech, Science, Health, Sports and Entertainment, for both world and local news.
 - **Search.** Results appear as you type, covering the past week across thousands of outlets, with recent searches kept for quick reuse.
 - **In-app reading.** Tap a story for a preview with its photo and summary, then read the full article on the publisher's page without leaving the app.
@@ -98,8 +98,10 @@ app/src/main/java/com/example/newsly/
 
 ## How the news is sourced
 
-- **World** comes straight from publishers' own RSS feeds, which include photos and summaries. Each outlet contributes at most 12 stories per feed so no single source dominates.
-- **Near you** and **Search** use Google News RSS (city, place and search feeds). These don't carry photos, so cards show the publisher's logo instead.
+- **World** comes straight from publishers' own RSS feeds, which include photos and summaries. Each outlet contributes at most 10 stories per feed so no single source dominates.
+- **Near you** combines Google News RSS (the city's feed, a city search and a country-wide search) with the country's own outlets' feeds, which carry photos. Outlets are listed for Bangladesh, the UK, the US, India, Pakistan, Australia, Ireland and Nigeria in `PublisherFeeds.kt`; other countries show Google News stories only. When a story arrives from both, the outlet's copy (with its photo) is kept, and no outlet gets more than 8 stories.
+- **Search** uses Google News RSS. Google News doesn't carry photos, so those cards show the publisher's logo instead.
+- Stories from feeds without photos (Al Jazeera) get the article page's preview image (`og:image`), looked up once per story and saved.
 - Stories open on the publisher's own page, as the publisher serves it, including their ads and paywalls. Newsly doesn't scrape or republish article text.
 - Only coarse location is requested, and only the resulting city and country name is used. Coordinates never leave the device.
 

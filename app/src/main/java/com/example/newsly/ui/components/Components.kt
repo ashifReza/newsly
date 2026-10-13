@@ -1,5 +1,8 @@
 package com.example.newsly.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,6 +30,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +45,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -47,8 +57,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.example.newsly.data.Article
+import com.example.newsly.data.remote.StoryImageFinder
 import com.example.newsly.ui.BookmarkFilled
 import com.example.newsly.ui.theme.Newsly
 import java.time.Duration
@@ -83,50 +97,89 @@ fun Instant.shortAge(now: Instant = Instant.now(), suffix: Boolean = true): Stri
     }
 }
 
-/** Story photo, with a flat placeholder while it loads or if it fails. */
+/**
+ * Story photo over a flat placeholder. Uses AsyncImage rather than SubcomposeAsyncImage:
+ * swapping in a new subcomposition for every image that finishes loading made scrolling
+ * stutter while a feed's photos were still arriving.
+ */
 @Composable
 fun StoryImage(url: String?, modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(0.dp)) {
-    val placeholder = @Composable { Box(Modifier.background(Newsly.colors.placeholder)) }
     Box(modifier.clip(shape).background(Newsly.colors.placeholder)) {
         if (url != null) {
-            SubcomposeAsyncImage(
+            AsyncImage(
                 model = url,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                loading = { placeholder() },
-                error = { placeholder() },
                 modifier = Modifier.matchParentSize(),
             )
         }
     }
 }
 
-/** Publisher logo in a rounded square; initials if the logo can't load. */
+/** Finds photos for stories whose feed has none; provided by MainActivity. */
+val LocalStoryImageFinder = staticCompositionLocalOf<StoryImageFinder?> { null }
+
+/**
+ * The story's photo: from its feed if it has one, otherwise looked up from the
+ * article page. Null until (and unless) one is found.
+ */
+@Composable
+fun rememberStoryImage(article: Article): String? {
+    article.imageUrl?.let { return it }
+    val finder = LocalStoryImageFinder.current
+    if (finder == null || !finder.canFind(article.url)) return null
+    val image by produceState(finder.cached(article.url), article.url) {
+        if (value == null) value = finder.find(article.url)
+    }
+    return image
+}
+
+/**
+ * Square thumbnail that shows the publisher's logo until the story's photo is found
+ * and loaded, so rows never change size as photos arrive.
+ */
+@Composable
+fun StoryThumb(article: Article, size: Dp, corner: Dp = 14.dp) {
+    val image = rememberStoryImage(article)
+    Box(Modifier.size(size).clip(RoundedCornerShape(corner)).background(Newsly.colors.soft), contentAlignment = Alignment.Center) {
+        PublisherLogo(article, size * 0.5f, corner = corner / 2)
+        if (image != null) {
+            AsyncImage(
+                model = image,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
+    }
+}
+
+/** Publisher logo in a rounded square; initials until the logo loads, or if it can't. */
 @Composable
 fun PublisherLogo(article: Article, size: Dp, corner: Dp = size / 4, onDark: Boolean = false) {
     val shape = RoundedCornerShape(corner)
-    val initials = article.sourceName.split(' ', '.', '-').filter { it.isNotBlank() && it.first().isLetterOrDigit() }
-        .take(2).joinToString("") { it.first().uppercase() }.ifEmpty { "N" }
     val tileBg = if (onDark) Color.White else Newsly.colors.soft
-    val fallback = @Composable {
-        Box(Modifier.size(size).background(tileBg, shape), contentAlignment = Alignment.Center) {
+    var loaded by remember(article.logoUrl) { mutableStateOf(false) }
+    Box(Modifier.size(size).clip(shape).background(tileBg), contentAlignment = Alignment.Center) {
+        if (!loaded) {
+            val initials = remember(article.sourceName) {
+                article.sourceName.split(' ', '.', '-').filter { it.isNotBlank() && it.first().isLetterOrDigit() }
+                    .take(2).joinToString("") { it.first().uppercase() }.ifEmpty { "N" }
+            }
             Text(
                 initials,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
                 color = if (onDark) Color(0xFF121212) else Newsly.colors.ink,
             )
         }
-    }
-    if (article.logoUrl == null) {
-        fallback()
-    } else {
-        SubcomposeAsyncImage(
-            model = article.logoUrl,
-            contentDescription = null,
-            loading = { fallback() },
-            error = { fallback() },
-            modifier = Modifier.size(size).clip(shape).background(tileBg),
-        )
+        if (article.logoUrl != null) {
+            AsyncImage(
+                model = article.logoUrl,
+                contentDescription = null,
+                onSuccess = { loaded = true },
+                modifier = Modifier.matchParentSize(),
+            )
+        }
     }
 }
 
@@ -244,7 +297,23 @@ fun HeroCard(article: Article, saved: Boolean, actions: StoryActions, modifier: 
 fun LeadTextCard(article: Article, saved: Boolean, actions: StoryActions, scope: String?) {
     val bg = Newsly.colors.strong
     val fg = Newsly.colors.onStrong
+    val image = rememberStoryImage(article)
+    // Only open the photo banner once the picture is actually in memory, so it never shows empty.
+    val context = LocalContext.current
+    val photoReady by produceState(false, image) {
+        value = image != null &&
+            context.imageLoader.execute(ImageRequest.Builder(context).data(image).size(1080).build()) is SuccessResult
+    }
     StorySurface(actions, shape = RoundedCornerShape(26.dp), color = bg) {
+      Column {
+        AnimatedVisibility(photoReady, enter = expandVertically() + fadeIn()) {
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(image).size(1080).build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+            )
+        }
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PublisherLogo(article, 36.dp, corner = 10.dp, onDark = !Newsly.colors.isDark)
@@ -268,6 +337,7 @@ fun LeadTextCard(article: Article, saved: Boolean, actions: StoryActions, scope:
             }
             Text(article.title, style = MaterialTheme.typography.headlineMedium, color = fg)
         }
+      }
     }
 }
 
@@ -289,8 +359,9 @@ fun CompactRow(article: Article, saved: Boolean, actions: StoryActions) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (article.imageUrl != null) {
-                StoryImage(article.imageUrl, Modifier.padding(top = 10.dp).size(92.dp), RoundedCornerShape(14.dp))
+            val image = rememberStoryImage(article)
+            if (image != null) {
+                StoryImage(image, Modifier.padding(top = 10.dp).size(92.dp), RoundedCornerShape(14.dp))
             }
         }
     }
@@ -319,7 +390,11 @@ fun GroupedRow(article: Article, position: GroupPosition, saved: Boolean, action
     StorySurface(actions, shape = shape, color = Newsly.colors.surface) {
         Column(Modifier.padding(horizontal = 16.dp)) {
             Row(Modifier.padding(top = 14.dp, bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PublisherLogo(article, 40.dp, corner = 12.dp)
+                if (article.imageUrl != null || LocalStoryImageFinder.current?.canFind(article.url) == true) {
+                    StoryThumb(article, 64.dp)
+                } else {
+                    PublisherLogo(article, 40.dp, corner = 12.dp)
+                }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(article.title, style = MaterialTheme.typography.titleMedium, color = Newsly.colors.ink)
                     Text(

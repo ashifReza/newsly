@@ -223,7 +223,7 @@ private fun Feed(
                     if (photoLed) {
                         item(key = "kicker") { Kicker("Top story") }
                         item(key = lead.url) { HeroCard(lead, lead.url in savedUrls, storyActions(lead)) }
-                        if (rest.isNotEmpty()) item(key = "latest") { SectionHeader("Latest", updated ?: "${feed.articles.size} stories") }
+                        if (rest.isNotEmpty()) item(key = "latest") { SectionHeader(scope?.let { "Around $it" } ?: "Latest", updated ?: "${feed.articles.size} stories") }
                         items(rest, key = { it.url }) { article ->
                             CompactRow(article, article.url in savedUrls, storyActions(article))
                         }
@@ -260,6 +260,9 @@ private fun Feed(
 /** Floating "↑ 5 new stories" pill, shown when stories arrive while the reader is scrolled down. */
 @Composable
 private fun NewStoriesPill(count: Int, onClick: () -> Unit, modifier: Modifier) {
+    // Keep showing the last count while the pill slides away, rather than "0 new stories".
+    var shownCount by remember { mutableIntStateOf(count) }
+    if (count > 0) shownCount = count
     AnimatedVisibility(
         visible = count > 0,
         enter = fadeIn() + slideInVertically { -it },
@@ -280,7 +283,7 @@ private fun NewStoriesPill(count: Int, onClick: () -> Unit, modifier: Modifier) 
             ) {
                 Icon(NewslyIcons.ArrowUp, null, modifier = Modifier.size(18.dp))
                 Text(
-                    if (count == 1) "1 new story" else "$count new stories",
+                    if (shownCount == 1) "1 new story" else "$shownCount new stories",
                     style = MaterialTheme.typography.labelLarge,
                 )
             }

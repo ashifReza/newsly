@@ -91,7 +91,7 @@ private fun WelcomeStep(onGetStarted: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 PrimaryButton("Get started", onGetStarted)
                 Text(
-                    "Stories from BBC, The Guardian, NYT, France 24 and local outlets",
+                    "Stories from BBC, The Guardian, NYT, Al Jazeera and dozens of local outlets",
                     style = MaterialTheme.typography.bodySmall,
                     color = c.muted,
                     textAlign = TextAlign.Center,

@@ -92,6 +92,10 @@ class RssClient(private val client: OkHttpClient = OkHttpClient()) {
     }
 
     private companion object {
+        val DATE_FORMATS = listOf(
+            DateTimeFormatter.RFC_1123_DATE_TIME,
+            DateTimeFormatter.ofPattern("EEE, d MMM yy HH:mm:ss Z", java.util.Locale.ENGLISH),
+        )
         const val MEDIA_RSS_NS = "http://search.yahoo.com/mrss/"
     }
 
@@ -123,8 +127,10 @@ class RssClient(private val client: OkHttpClient = OkHttpClient()) {
                 link = l,
                 description = description?.let(::plainText)?.takeIf { it.isNotEmpty() },
                 publishedAt = pubDate?.let {
-                    runCatching { ZonedDateTime.parse(it.trim(), DateTimeFormatter.RFC_1123_DATE_TIME).toInstant() }
-                        .getOrNull()
+                    // Some feeds (The Daily Star) write a two-digit year: "Tue, 13 Oct 26 00:00:00 +0600".
+                    DATE_FORMATS.firstNotNullOfOrNull { format ->
+                        runCatching { ZonedDateTime.parse(it.trim(), format).toInstant() }.getOrNull()
+                    }
                 },
                 imageUrl = imageUrl,
                 sourceName = sourceName?.trim(),

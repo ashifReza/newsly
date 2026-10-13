@@ -61,13 +61,31 @@ interface FeedCacheDao {
     suspend fun insertArticles(articles: List<FeedArticleEntity>)
 }
 
+/** A story's photo, found from its article page; null when the page has none. */
+@Entity(tableName = "story_images")
+data class StoryImageEntity(
+    @PrimaryKey val articleUrl: String,
+    val imageUrl: String?,
+    val checkedAtMillis: Long,
+)
+
+@Dao
+interface StoryImageDao {
+    @Query("SELECT * FROM story_images WHERE articleUrl = :articleUrl")
+    suspend fun find(articleUrl: String): StoryImageEntity?
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.REPLACE)
+    suspend fun insert(image: StoryImageEntity)
+}
+
 /**
  * Last downloaded copy of each feed. Kept apart from bookmarks because it can
  * always be rebuilt from the network, so schema changes can simply wipe it.
  */
-@Database(entities = [FeedEntity::class, FeedArticleEntity::class], version = 1, exportSchema = false)
+@Database(entities = [FeedEntity::class, FeedArticleEntity::class, StoryImageEntity::class], version = 2, exportSchema = false)
 abstract class FeedCacheDatabase : RoomDatabase() {
     abstract fun feedCacheDao(): FeedCacheDao
+    abstract fun storyImageDao(): StoryImageDao
 
     companion object {
         fun create(context: Context): FeedCacheDatabase =
